@@ -1,0 +1,208 @@
+
+    {% extends "base.html" %}
+    {% load static %}
+    
+    {% block content %}
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+    <h1 style="text-align:center;color:#4879d1">Data Visualization Dashboard</h1>
+    <div class="row mt-5 ml-5">        
+            {% comment %} <hr> {% endcomment %}
+           
+        <form id="filterForm">
+            <div class="row "> 
+                <div class="">
+                    <label for="start_year">Start Year:</label>
+                    <input type="text" id="start_year" class="form-control">
+                </div>
+                <div class="">
+                    <label for="intensity">Intensity:</label>
+                    <input type="text" id="intensity" name="intensity" class="form-control">
+                </div>
+                <div class="">
+                    <label for="topic">Topic:</label>
+                    <input type="text" id="topic" name="topic" class="form-control">
+                </div>
+                <div class="">
+                    <label for="relevance">Relevance:</label>
+                    <input type="text" id="relevance" name="relevance" class="form-control">
+                </div>
+                <div class="">
+                    <label for="region">Region:</label>
+                    <input type="text" id="region" name="region" class="form-control">
+                </div>
+                <button id="applyFilters" class="btn btn-primary mt-4 ml-5" style="height:50%">Apply Filters to view the charts</button>
+            
+            </div>
+            <div class="blink">
+                <p style="text-align: center;color:darkgreen"> Just clicking the button without giving any filters will show the full charts</p>
+            </div>
+        </form>
+    {% comment %} </div> {% endcomment %}
+                
+        <!-- Intensity Chart -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="card shadow mb-4">
+                <!-- Card Header - Dropdown -->
+                <div
+                    class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Intensity Chart</h6>                    
+                </div>
+                <!-- Card Body -->
+                <div class="card-body">
+                    <div id="intensity-chart"></div>
+                </div>
+            </div>
+        </div>
+        <!-- Topic Chart -->
+        <div class="col-xl-4 col-lg-5">
+            <div class="card shadow mb-4">
+                <!-- Card Header - Dropdown -->
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Topic chart</h6>
+                </div>
+                <!-- Card Body -->
+                <div class="card-body">
+                    <div id="topic-chart"></div>
+                </div>
+            </div>
+        </div>  
+
+        <!-- Likelihood Chart -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="card shadow mb-4">
+                <!-- Card Header - Dropdown -->
+                <div
+                    class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Likelihood Chart</h6>                    
+                </div>
+                <!-- Card Body -->
+                <div class="card-body">
+                    <div id="likelihood-chart"></div>
+                </div>
+            </div>
+        </div>
+        
+              
+    </div>
+
+    <script>
+        // Move the chart creation logic to a separate function
+        function createCharts(datapoint) {
+            // Plot Intensity Chart
+            const intensityChart = document.getElementById('intensity-chart');
+            const intensityTrace = {
+                x: datapoint.map(d => d.start_year),
+                y: datapoint.map(d => d.intensity),
+                type: 'bar',
+                hoverinfo: 'x+y+text',
+                marker: { color: '#9a4ba4' }
+            };
+            const intensityLayout = {
+                title: 'Intensity Chart',
+                xaxis: { title: 'Start Year' },
+                yaxis: { title: 'Intensity' }
+            };
+            Plotly.newPlot(intensityChart, [intensityTrace], intensityLayout);
+            
+            // Plot Likelihood Chart
+            const likelihoodChart = document.getElementById('likelihood-chart');
+            const likelihoodTrace = {
+                x: datapoint.map(d => d.start_year),
+                y: datapoint.map(d => d.likelihood),
+                type: 'scatter',
+                mode: 'lines+markers',
+                hoverinfo: 'x+y+text',
+                marker: { color: '#e9acc3' }
+            };
+            const likelihoodLayout = {
+                title: 'Likelihood Chart',
+                xaxis: { title: 'Start Year' },
+                yaxis: { title: 'Likelihood' }
+            };
+            Plotly.newPlot(likelihoodChart, [likelihoodTrace], likelihoodLayout);
+            
+            // Plot topic Chart
+            const topicChart = document.getElementById('topic-chart');
+            const topicLabels = datapoint.map(d => d.topic);
+            console.log("topic labels",topicLabels)
+            const topicData = [{
+                labels: topicLabels,
+                type: 'pie'
+            }];
+            const topicLayout = {
+                title: 'topic Chart',
+                height: 400,
+                width: 500
+            };
+            Plotly.newPlot(topicChart, topicData, topicLayout);
+        }
+
+        function loadInitialCharts() {
+            // Make an AJAX request to the server to get initial data
+            fetch(`/dashboard`, {
+                method: 'GET',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                createCharts(data); // Call the chart creation function
+            })
+            .catch(error => {
+                console.error('Error fetching initial data:', error);
+            });
+        }
+
+        // Attach event listener to the Apply Filters button
+        document.addEventListener('DOMContentLoaded', function() {
+
+            loadInitialCharts();
+
+
+            const applyFiltersButton = document.getElementById('applyFilters');
+            applyFiltersButton.addEventListener('click', function(event) {
+                event.preventDefault();
+                
+                // Retrieve filter values
+                const startYear = document.getElementById('start_year').value || null;
+                const intensity = document.getElementById('intensity').value || null;
+                const topic = document.getElementById('topic').value || null;
+                const relevance = document.getElementById('relevance').value || null;               
+                const region = document.getElementById('region').value || null;
+                
+                
+                // Make an AJAX request to the server to get filtered data
+                fetch(`/dashboard?start_year=${startYear}&intensity=${intensity}&topic=${topic}&relevance=${relevance}&region=${region}`, {
+                    method: 'GET',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    createCharts(data); // Call the chart creation function
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                });
+            });
+        });
+    </script>
+    <style>
+        {% comment %} .blink {
+            animation: blinker 1s alternate infinite;
+        } {% endcomment %}
+
+        @keyframes blinker {
+            0%, 100% {
+                /* background-color: yellow; */
+                color: green;
+            }
+            50% {
+                /* background-color: rgb(175, 24, 180); */
+                color: yellow;
+            }
+        }
+    </style>
+    {% endblock %}
+{% comment %} </body>
+</html> {% endcomment %}
